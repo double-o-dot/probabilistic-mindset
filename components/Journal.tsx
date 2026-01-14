@@ -199,7 +199,42 @@ const Journal: React.FC = () => {
                     const updatedFiles = files.map(f => f.id === updated.id ? updated : f);
                     saveFiles(updatedFiles);
                   }}
-                  placeholder="Write your markdown content here..."
+                  onPaste={async (e) => {
+                    const items = e.clipboardData.items;
+                    for (let i = 0; i < items.length; i++) {
+                      const item = items[i];
+                      if (item.type.indexOf('image') !== -1) {
+                        e.preventDefault();
+                        const file = item.getAsFile();
+                        if (file) {
+                          const reader = new FileReader();
+                          reader.onload = (event) => {
+                            const base64 = event.target?.result as string;
+                            const imageMarkdown = `\n![Pasted Image](${base64})\n`;
+                            const textarea = e.currentTarget;
+                            const start = textarea.selectionStart;
+                            const end = textarea.selectionEnd;
+                            const newContent = 
+                              selectedFile.content.substring(0, start) + 
+                              imageMarkdown + 
+                              selectedFile.content.substring(end);
+                            const updated = { ...selectedFile, content: newContent };
+                            setSelectedFile(updated);
+                            const updatedFiles = files.map(f => f.id === updated.id ? updated : f);
+                            saveFiles(updatedFiles);
+                            // Set cursor position after inserted image
+                            setTimeout(() => {
+                              textarea.focus();
+                              textarea.setSelectionRange(start + imageMarkdown.length, start + imageMarkdown.length);
+                            }, 0);
+                          };
+                          reader.readAsDataURL(file);
+                        }
+                        break;
+                      }
+                    }
+                  }}
+                  placeholder="Write your markdown content here... (You can paste images directly)"
                   className="w-full h-[400px] px-4 py-3 bg-slate-800 border border-slate-700 rounded text-sm text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500 font-mono resize-none"
                 />
                 <div className="mt-4 p-4 bg-slate-800 rounded border border-slate-700">
@@ -212,6 +247,8 @@ const Journal: React.FC = () => {
                         .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
                         .replace(/\*(.*?)\*/g, '<em>$1</em>')
                         .replace(/`(.*?)`/g, '<code class="bg-slate-700 px-1 rounded">$1</code>')
+                        .replace(/!\[([^\]]*)\]\((data:image\/[^)]+)\)/g, '<img src="$2" alt="$1" class="max-w-full h-auto rounded my-4" />')
+                        .replace(/!\[([^\]]*)\]\(([^)]+)\)/g, '<img src="$2" alt="$1" class="max-w-full h-auto rounded my-4" />')
                     }}
                   />
                 </div>

@@ -170,7 +170,39 @@ const Idea: React.FC = () => {
                   onChange={(e) => {
                     setSelectedFile({ ...selectedFile, content: e.target.value });
                   }}
-                  placeholder="Write your idea in markdown format..."
+                  onPaste={async (e) => {
+                    const items = e.clipboardData.items;
+                    for (let i = 0; i < items.length; i++) {
+                      const item = items[i];
+                      if (item.type.indexOf('image') !== -1) {
+                        e.preventDefault();
+                        const file = item.getAsFile();
+                        if (file) {
+                          const reader = new FileReader();
+                          reader.onload = (event) => {
+                            const base64 = event.target?.result as string;
+                            const imageMarkdown = `\n![Pasted Image](${base64})\n`;
+                            const textarea = e.currentTarget;
+                            const start = textarea.selectionStart;
+                            const end = textarea.selectionEnd;
+                            const newContent = 
+                              selectedFile.content.substring(0, start) + 
+                              imageMarkdown + 
+                              selectedFile.content.substring(end);
+                            setSelectedFile({ ...selectedFile, content: newContent });
+                            // Set cursor position after inserted image
+                            setTimeout(() => {
+                              textarea.focus();
+                              textarea.setSelectionRange(start + imageMarkdown.length, start + imageMarkdown.length);
+                            }, 0);
+                          };
+                          reader.readAsDataURL(file);
+                        }
+                        break;
+                      }
+                    }
+                  }}
+                  placeholder="Write your idea in markdown format... (You can paste images directly)"
                   className="w-full h-[400px] px-4 py-3 bg-slate-800 border border-slate-700 rounded text-sm text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500 font-mono resize-none mb-6"
                 />
                 
@@ -189,6 +221,8 @@ const Idea: React.FC = () => {
                         .replace(/^# (.*$)/gm, '<h1 class="text-2xl font-bold text-white mt-6 mb-4">$1</h1>')
                         .replace(/^## (.*$)/gm, '<h2 class="text-xl font-bold text-white mt-5 mb-3">$1</h2>')
                         .replace(/^### (.*$)/gm, '<h3 class="text-lg font-bold text-white mt-4 mb-2">$1</h3>')
+                        .replace(/!\[([^\]]*)\]\((data:image\/[^)]+)\)/g, '<img src="$2" alt="$1" class="max-w-full h-auto rounded my-4" />')
+                        .replace(/!\[([^\]]*)\]\(([^)]+)\)/g, '<img src="$2" alt="$1" class="max-w-full h-auto rounded my-4" />')
                     }}
                   />
                 </div>
